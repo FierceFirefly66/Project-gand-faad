@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { X, Mail, Plus, Trash2, Send } from 'lucide-react';
+import { X, Mail, Plus, Trash2, Send, Check } from 'lucide-react';
+import { api } from '../services/api';
 
 interface ShareModalProps {
   summary: string;
   fileName: string;
+  summaryId: string;
   onClose: () => void;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ summary, fileName, onClose }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ summary, fileName, summaryId, onClose }) => {
   const [emails, setEmails] = useState<string[]>(['']);
   const [subject, setSubject] = useState(`Summary: ${fileName.replace(/\.[^/.]+$/, '')}`);
   const [message, setMessage] = useState('Please find the attached summary below.');
   const [isSending, setIsSending] = useState(false);
+  const [sendSuccess, setSendSuccess] = useState(false);
 
   const addEmailField = () => {
     setEmails([...emails, '']);
@@ -29,7 +32,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ summary, fileName, onClose }) =
     setEmails(newEmails);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const validEmails = emails.filter(email => email.trim() && email.includes('@'));
     
     if (validEmails.length === 0) {
@@ -39,20 +42,35 @@ const ShareModal: React.FC<ShareModalProps> = ({ summary, fileName, onClose }) =
 
     setIsSending(true);
     
-    // Create email body
-    const emailBody = `${message}\n\n--- SUMMARY ---\n\n${summary}`;
-    
-    // Create mailto link
-    const mailtoLink = `mailto:${validEmails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-    
-    // Open default email client
-    window.location.href = mailtoLink;
-    
-    // Simulate sending delay
-    setTimeout(() => {
+    try {
+      // Try to send via backend API first
+      if (summaryId && summaryId !== 'mock-id') {
+        await api.shareSummary(summaryId, validEmails);
+        setSendSuccess(true);
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+      } else {
+        // Fallback to mailto link
+        const emailBody = `${message}\n\n--- SUMMARY ---\n\n${summary}`;
+        const mailtoLink = `mailto:${validEmails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+        window.location.href = mailtoLink;
+        setTimeout(() => {
+          onClose();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Failed to send email via API, falling back to mailto:', error);
+      // Fallback to mailto link
+      const emailBody = `${message}\n\n--- SUMMARY ---\n\n${summary}`;
+      const mailtoLink = `mailto:${validEmails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+      window.location.href = mailtoLink;
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    } finally {
       setIsSending(false);
-      onClose();
-    }, 1000);
+    }
   };
 
   return (
@@ -164,12 +182,19 @@ const ShareModal: React.FC<ShareModalProps> = ({ summary, fileName, onClose }) =
               onClick={handleSend}
               disabled={isSending}
               className={`flex items-center px-6 py-2 rounded-lg transition-all duration-200 ${
-                isSending
+                isSending || sendSuccess
                   ? 'bg-gray-400 text-white cursor-wait'
+                  : sendSuccess
+                  ? 'bg-green-600 text-white'
                   : 'bg-teal-600 text-white hover:bg-teal-700 focus:ring-4 focus:ring-teal-300'
               }`}
             >
-              {isSending ? (
+              {sendSuccess ? (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Sent Successfully!
+                </>
+              ) : isSending ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                   Sending...

@@ -3,10 +3,12 @@ import { ArrowLeft, Edit, Share2, Download, Copy, Check, Mail, MessageCircle, Tw
 import EditableText from './EditableText';
 import ShareModal from './ShareModal';
 import ShareOptionsModal from './ShareOptionsModal';
+import { api } from '../services/api';
 
 interface ResultsPageProps {
   summary: string;
   setSummary: (summary: string) => void;
+  summaryId: string;
   fileName: string;
   prompt: string;
   onBackToUpload: () => void;
@@ -16,6 +18,7 @@ interface ResultsPageProps {
 const ResultsPage: React.FC<ResultsPageProps> = ({
   summary,
   setSummary,
+  summaryId,
   fileName,
   prompt,
   onBackToUpload,
@@ -25,7 +28,23 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  const handleSummaryChange = async (newContent: string) => {
+    setSummary(newContent);
+    
+    // Auto-save to backend if we have a real summaryId
+    if (summaryId && summaryId !== 'mock-id') {
+      try {
+        setIsSaving(true);
+        await api.updateSummary(summaryId, newContent);
+      } catch (error) {
+        console.error('Failed to save summary:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
@@ -170,9 +189,15 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
             <div className="p-6">
               <EditableText
                 content={summary}
-                onChange={setSummary}
+                onChange={handleSummaryChange}
                 isEditing={isEditing}
               />
+              {isSaving && (
+                <div className="mt-2 text-sm text-gray-500 flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400 mr-2"></div>
+                  Saving changes...
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -201,6 +226,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({
         <ShareModal
           summary={summary}
           fileName={fileName}
+          summaryId={summaryId}
           onClose={() => setShowEmailModal(false)}
         />
       )}

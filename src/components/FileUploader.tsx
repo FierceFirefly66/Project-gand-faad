@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { FileData } from '../App';
+import { api } from '../services/api';
 
 interface FileUploaderProps {
   onFileUpload: (file: FileData) => void;
@@ -57,15 +58,20 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileUpload }) => {
     if (!validateFile(file)) return;
     
     try {
-      const content = await readFileContent(file);
+      // Upload file to backend
+      const uploadResponse = await api.uploadTranscript(file);
+      
       const fileData: FileData = {
-        name: file.name,
-        content,
+        id: uploadResponse.id,
+        name: uploadResponse.fileName,
+        content: uploadResponse.content,
         size: file.size
       };
+      
       onFileUpload(fileData);
     } catch (err) {
-      setError('Failed to read file content');
+      console.error('Upload error:', err);
+      setError('Failed to upload file. Please try again.');
     }
   }, [onFileUpload]);
 

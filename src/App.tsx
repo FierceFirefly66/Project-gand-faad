@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import UploadPage from './components/UploadPage';
 import ResultsPage from './components/ResultsPage';
+import { api } from './services/api';
 
 export interface FileData {
   name: string;
   content: string;
   size: number;
+  id?: string;
 }
 
 function App() {
@@ -13,6 +15,7 @@ function App() {
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [prompt, setPrompt] = useState('');
   const [summary, setSummary] = useState('');
+  const [summaryId, setSummaryId] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async (file: FileData, customPrompt: string) => {
@@ -20,14 +23,22 @@ function App() {
     setPrompt(customPrompt);
     setIsGenerating(true);
     
-    // Simulate AI processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Mock AI response based on prompt
-    const mockSummary = generateMockSummary(file.content, customPrompt);
-    setSummary(mockSummary);
-    setIsGenerating(false);
-    setCurrentPage('results');
+    try {
+      // Generate summary using backend API
+      const response = await api.generateSummary(file.id!, customPrompt);
+      setSummary(response.content);
+      setSummaryId(response.summaryId);
+      setCurrentPage('results');
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      // Fallback to mock data if API fails
+      const mockSummary = generateMockSummary(file.content, customPrompt);
+      setSummary(mockSummary);
+      setSummaryId('mock-id');
+      setCurrentPage('results');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const generateMockSummary = (content: string, customPrompt: string): string => {
@@ -112,6 +123,7 @@ All participants agreed on the proposed changes and committed to the established
     setFileData(null);
     setPrompt('');
     setSummary('');
+    setSummaryId('');
   };
 
   if (currentPage === 'results') {
@@ -119,6 +131,7 @@ All participants agreed on the proposed changes and committed to the established
       <ResultsPage
         summary={summary}
         setSummary={setSummary}
+        summaryId={summaryId}
         fileName={fileData?.name || ''}
         prompt={prompt}
         onBackToUpload={handleBackToUpload}

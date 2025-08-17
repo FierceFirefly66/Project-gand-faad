@@ -12,8 +12,8 @@ public class CorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/base/")
-                        .allowedOrigins("http://localhost:5173/") // Frontend URL
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:5173") // Frontend URL
                         .allowedMethods("GET", "POST", "PUT", "DELETE") // Allowed HTTP methods
                         .allowedHeaders("*"); // Allow any headers
             }
